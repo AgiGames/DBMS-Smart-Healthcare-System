@@ -30,13 +30,64 @@ def show_login_or_register_prompts():
         email = st.text_input("Email")
         role = st.selectbox("Select Role", ["Patient", "Doctor", "Staff", "Nurse"])
         password = st.text_input("Password", type="password")
-        register_submit_button = st.button("Register")
 
+        # patient details
+        age = 0
+        gender = ""
+        address = ""
+        contact = ""
+        blood_type = ""
+
+        # doctor details
+        contact = ""
+        specialization = ""
+
+        if "show_doctor_registration_form" not in st.session_state:
+            st.session_state.show_doctor_registration_form = False
+        if role == "Doctor":
+            st.session_state.show_patient_registration_form = False
+            st.session_state.show_doctor_registration_form = True
+        
+        if "show_patient_registration_form" not in st.session_state:
+            st.session_state.show_patient_registration_form = False
+        if role == "Patient":
+            st.session_state.show_patient_registration_form = True
+            st.session_state.show_doctor_registration_form = False
+        
+        if st.session_state.show_doctor_registration_form:
+            specialization = st.text_input("Specialization")
+            contact = st.number_input("Contact Number", min_value=1000000000, max_value=9999999999, step=1, format="%d")
+
+        if st.session_state.show_patient_registration_form:
+            age = st.number_input("Age", 0, 200)
+            gender = st.selectbox("Select Gender", ["Male", "Female", "Other"])
+            address = st.text_input("address")
+            contact = st.number_input("Contact Number", min_value=1000000000, max_value=9999999999, step=1, format="%d")
+            blood_type = st.selectbox("Blood Type", ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
+
+
+        register_submit_button = st.button("Register")
         if register_submit_button:
-            if backend_queries.register(name, email, role, password):
-                st.success("Successfully Registered!")
+            user_successfully_registered, user_id = backend_queries.register(name, email, role, password)
+            if user_successfully_registered:
+                st.success("Successfully Registered User!")
             else:
-                st.error("Unable to Register... :(")
+                st.error("Unable to Register User... :(")
+            
+            if st.session_state.show_patient_registration_form:
+                if backend_queries.register_patient(name, age, gender, address, str(contact), blood_type, user_id):
+                    st.success("Successfully Registered Patient!")
+                else:
+                    st.error("Unable to Register Patient... :(")
+                    backend_queries.remove_user(user_id)
+
+            if st.session_state.show_doctor_registration_form:
+                if backend_queries.register_doctor(name, specialization, str(contact), email, user_id):
+                    st.success("Successfully Registered Doctor!")
+                else:
+                    st.error("Unable to Register Doctor... :(")
+                    backend_queries.remove_user(user_id)
+
 
 def show_dashboard():
     user_details = st.session_state.user_details
