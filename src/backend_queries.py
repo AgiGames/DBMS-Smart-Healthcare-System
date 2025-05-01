@@ -49,14 +49,14 @@ def register(name: str, email: str, role: str, password: str) -> bool:
     return rows_affected > 0
     
 
-def get_all_doctors() -> List[Tuple]:
+def get_doctors_available_for_appointment() -> List[Tuple]:
 
     global conn
     if conn is None:
         init_connection()
     
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM doctors")
+    cursor.execute("SELECT Name, Specialization, Contact, Email, DoctorID FROM doctors d WHERE d.Availability = 'Available';")
     results = cursor.fetchall()
     cursor.close()
     return results       
@@ -69,6 +69,19 @@ def get_doctor_id(user_id: int) -> int:
 
     cursor = conn.cursor()
     query = "SELECT DoctorID FROM doctors WHERE UserID = %s"
+    cursor.execute(query, (user_id,))
+    results = cursor.fetchone()
+    cursor.close()
+    return results[0]
+
+def get_patient_id(user_id: int) -> int:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    cursor = conn.cursor()
+    query = "SELECT PatientID FROM patients WHERE UserID = %s"
     cursor.execute(query, (user_id,))
     results = cursor.fetchone()
     cursor.close()
@@ -124,7 +137,6 @@ def set_doctor_availability(user_id: int, available_state: str) -> None:
         conn.commit()
     except mysql.connector.Error as err:
         print("Error setting availability", err)
-        rows_affected = 0
     finally:
         cursor.close()
 
@@ -142,6 +154,83 @@ def set_appointment_as_completed(appointment_id: int) -> None:
         conn.commit()
     except mysql.connector.Error as err:
         print("Error setting appointment completion status", err)
-        rows_affected = 0
     finally:
         cursor.close()
+
+def book_appointment(patient_id: int, doctor_id: int) -> bool:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    cursor = conn.cursor()
+    query = "INSERT INTO appointment (PatientID, DoctorID, Status) VALUES (%s, %s, %s)"
+
+    flag = False
+
+    try:
+        cursor.execute(query, (patient_id, doctor_id, 'Not Completed'))
+        conn.commit()
+        flag = True
+    except mysql.connector.Error as err:
+        print("Error setting appointment completion status", err)
+    finally:
+        cursor.close()
+        return flag
+    
+def get_medical_records(patient_id: int) -> List[Tuple]:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    '''
+    SELECT RecordID, Diagnosis, m.Date as Medical_Record_Date, m.PrescriptionID, pr.PatientID, p.Name, pr.DoctorID, d.Name, pr.Date as Prescription_Date FROM
+    medicalrecords m
+    INNER JOIN
+    prescriptions pr
+    ON m.PrescriptionID = pr.PrescriptionID
+    INNER JOIN
+    patients p
+    ON pr.PatientID = p.PatientID
+    INNER JOIN
+    doctors d
+    ON pr.DoctorID = d.DoctorID
+    WHERE pr.PatientID = 1;
+    '''
+
+    cursor = conn.cursor()
+    query = """
+    SELECT 
+        m.RecordID,
+        m.Diagnosis,
+        m.Date AS Medical_Record_Date,
+        m.PrescriptionID,
+        pr.PatientID,
+        p.Name AS Patient_Name,
+        pr.DoctorID,
+        d.Name AS Doctor_Name,
+        pr.Date AS Prescription_Date
+    FROM medicalrecords m
+    INNER JOIN prescriptions pr ON m.PrescriptionID = pr.PrescriptionID
+    INNER JOIN patients p ON pr.PatientID = p.PatientID
+    INNER JOIN doctors d ON pr.DoctorID = d.DoctorID
+    WHERE pr.PatientID = %s;
+    """
+    cursor.execute(query, (patient_id,))
+    result = cursor.fetchall()
+    cursor.close()
+    return result
+
+def get_medicines_of_prescriptions(prescription_id: int) -> List[Tuple]:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    cursor = conn.cursor()
+    query = "SELECT m.MedicineID, m.Name, m.Dosage FROM prescriptionmedicines pm JOIN medicineinventory m ON pm.MedicineID = m.MedicineID WHERE pm.PrescriptionID = %s"
+    cursor.execute(query, (prescription_id,))
+    result = cursor.fetchall()
+    cursor.close()
+    return result
