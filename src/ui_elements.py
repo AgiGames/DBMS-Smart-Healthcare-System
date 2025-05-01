@@ -129,6 +129,89 @@ def show_dashboard():
         st.text("")
         st.text("Welcome patient! View your functions below.")
 
+        st.markdown("---")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            book_appointment_button = st.button("Book Appointment")
+        with col2:
+            show_medical_records_button = st.button("Show Medical Records")
+        with col3:
+            show_prescription_medicines_button = st.button("Show Prescription")
+
+        if "book_appointment" not in st.session_state:
+            st.session_state.book_appointment = False
+        if book_appointment_button:
+            st.session_state.book_appointment = True
+            st.session_state.show_medical_records = False
+            st.session_state.show_prescription_medicines = False
+
+        if "show_medical_records" not in st.session_state:
+            st.session_state.show_medical_records = False
+        if show_medical_records_button:
+            st.session_state.book_appointment = False
+            st.session_state.show_medical_records = True
+
+        if "show_prescription_medicines" not in st.session_state:
+            st.session_state.show_prescription_medicines = False
+        if show_prescription_medicines_button:
+            st.session_state.book_appointment = False
+            st.session_state.show_prescription_medicines = True
+
+        if st.session_state.book_appointment:
+            st.text("Available Doctors and their Specializations")
+
+            patient_id = backend_queries.get_patient_id(user_id)
+            available_doctors = backend_queries.get_doctors_available_for_appointment()
+            
+            for doctor in available_doctors:
+                name = doctor[0]
+                specialization = doctor[1]
+                contact = doctor[2]
+                email = doctor[3]
+                doctor_id = doctor[4]  # Make sure this key exists
+
+                cols = st.columns([2, 2, 2, 2, 4])
+                cols[0].write(name)
+                cols[1].write(specialization)
+                cols[2].write(contact)
+                cols[3].write(email)
+
+                # Use a form to handle button clicks per row
+                with cols[4].form(key=f"form_{doctor_id}"):
+                    submit = st.form_submit_button("Book Appointment")
+                    if submit:
+                        # Send to backend (custom logic here)
+                        if backend_queries.book_appointment(patient_id, doctor_id):
+                            st.success(f"Appointment booked with Dr. {name}")
+                        else:
+                            st.error(f"Unable to Book Appointment! :(")
+        
+        if st.session_state.show_medical_records:
+            st.text("Your Medical Records")
+
+            patient_id = backend_queries.get_patient_id(user_id)
+            medical_records = backend_queries.get_medical_records(patient_id)
+
+            df_medical_records = pd.DataFrame(medical_records, columns = [
+                                                        "RecordID",
+                                                        "Diagnosis",
+                                                        "Medical Record Date",
+                                                        "PrescriptionID",
+                                                        "PatientID",
+                                                        "Patient Name",
+                                                        "DoctorID",
+                                                        "Doctor Name",
+                                                        "Prescription Date"]
+                                                        )
+            st.dataframe(df_medical_records, use_container_width=True, hide_index=True)
+
+        if st.session_state.show_prescription_medicines:
+            prescription_id = st.number_input("Enter Prescription ID to See Medicines", min_value=0, step=1)
+            medicines = backend_queries.get_medicines_of_prescriptions(prescription_id)
+            print(medicines)
+
+            df_medicines = pd.DataFrame(medicines, columns=["Medicine ID", "Name", "Dosage"])
+            st.dataframe(df_medicines, use_container_width=True, hide_index=True)
 
 
 
