@@ -27,7 +27,7 @@ def authenticate(email: str, password: str) -> Tuple:
     cursor.close()
     return user
 
-def register(name: str, email: str, role: str, password: str) -> bool:
+def register(name: str, email: str, role: str, password: str) -> Tuple[bool, int]:
 
     global conn
     if conn is None:
@@ -46,7 +46,7 @@ def register(name: str, email: str, role: str, password: str) -> bool:
     finally:
         cursor.close()
 
-    return rows_affected > 0
+    return rows_affected > 0, cursor.lastrowid;
     
 
 def get_doctors_available_for_appointment() -> List[Tuple]:
@@ -173,7 +173,7 @@ def book_appointment(patient_id: int, doctor_id: int) -> bool:
         conn.commit()
         flag = True
     except mysql.connector.Error as err:
-        print("Error setting appointment completion status", err)
+        print("Error booking appointment status", err)
     finally:
         cursor.close()
         return flag
@@ -234,3 +234,60 @@ def get_medicines_of_prescriptions(prescription_id: int) -> List[Tuple]:
     result = cursor.fetchall()
     cursor.close()
     return result
+
+def register_patient(name: str, age: int, gender: str, address: str, contact: str, blood_type: str, user_id: int) -> bool:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    cursor = conn.cursor()
+    query = "INSERT INTO patients (Name, Age, Gender, Address, Contact, BloodType, UserID) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    flag = False
+
+    try:
+        cursor.execute(query, (name, age, gender, address, contact, blood_type, user_id))
+        conn.commit()
+        flag = True
+    except mysql.connector.Error as err:
+        print("Error registering patients", err)
+    finally:
+        cursor.close()
+        return flag
+    
+def remove_user(user_id: int) -> None:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    cursor = conn.cursor()
+    query = "DELETE FROM users WHERE UserID = %s"
+
+    try:
+        cursor.execute(query, (user_id,))
+        conn.commit()
+    except mysql.connector.Error as err:
+        print("Error removing user", err)
+    finally:
+        cursor.close()
+
+def register_doctor(name: str, specialization: str, contact: str, email: str, user_id: int) -> bool:
+
+    global conn
+    if conn is None:
+        init_connection()
+
+    cursor = conn.cursor()
+    query = "INSERT INTO doctors (Name, Specialization, Contact, Email, Availability, UserID) VALUES (%s, %s, %s, %s, %s, %s)"
+    flag = False
+
+    try:
+        cursor.execute(query, (name, specialization, contact, email, 'Available', user_id))
+        conn.commit()
+        flag = True
+    except mysql.connector.Err as err:
+        print("Error registering doctor", err)
+    finally:
+        cursor.close()
+        return flag
